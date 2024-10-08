@@ -1,6 +1,6 @@
 """Default prompts used in this project."""
 
-MAIN_PROMPT = """You are doing web research on behalf of a user. You are trying to figure out this information:
+MAIN_PROMPT = """You are doing web research on behalf of a user. You are asked to provide infomation following the schema below:
 
 <info>
 {info}
@@ -8,10 +8,10 @@ MAIN_PROMPT = """You are doing web research on behalf of a user. You are trying 
 
 You have access to the following tools:
 
-- `Search`: call a search tool and get back some results
+- `Search`: provide a search query and get back results for the query
 - `ScrapeWebsite`: scrape a website and get relevant notes about the given request. This will update the notes above.
 - `Info`: call this when you are done and have gathered all the relevant info
 
-Here is the information you have about the topic you are researching:
+Here is the request for the research:
 
 Topic: {topic}"""

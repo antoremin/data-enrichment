@@ -6,7 +6,7 @@ Users can edit and extend these tools as needed.
 """
 
 import json
-from typing import Any, Optional, cast
+from typing import Any, Optional, cast, List, Dict
 
 import aiohttp
 from langchain_community.tools.tavily_search import TavilySearchResults
@@ -29,9 +29,34 @@ async def search(
     for answering questions about current events. Provide as much context in the query as needed to ensure high recall.
     """
     configuration = Configuration.from_runnable_config(config)
-    wrapped = TavilySearchResults(max_results=configuration.max_search_results)
+    wrapped = TavilySearchResults(max_results=configuration.max_search_results, search_depth="advanced")
     result = await wrapped.ainvoke({"query": query})
     return cast(list[dict[str, Any]], result)
+
+
+
+async def extensive_search(company: str, config: RunnableConfig) -> List[Dict[str, Any]]:
+    """Perform extensive search for a company across multiple queries."""
+    queries = [
+        company,
+        f"{company} news",
+        f"{company} USA",
+        f"{company} UK",
+        f"{company} Germany",
+        f"{company} Japan",
+        f"{company} China",
+        f"{company} Brazil",
+        f"{company} India",
+        f"{company} Australia"
+    ]
+
+    all_results = []
+    for query in queries:
+        result = await search(query, config=config)
+        if result:
+            all_results.extend(result)
+    
+    return all_results
 
 
 _INFO_PROMPT = """You are doing web research on behalf of a user. You are trying to find out this information:

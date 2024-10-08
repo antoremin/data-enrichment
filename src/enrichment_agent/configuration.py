@@ -31,7 +31,7 @@ class Configuration:
     )
 
     max_search_results: int = field(
-        default=10,
+        default=20,
         metadata={
             "description": "The maximum number of search results to return for each search query."
         },
@@ -45,7 +45,7 @@ class Configuration:
     )
 
     max_loops: int = field(
-        default=6,
+        default=30,
         metadata={
             "description": "The maximum number of interaction loops allowed before the agent terminates."
         },

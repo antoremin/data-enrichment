@@ -15,8 +15,9 @@ from pydantic import BaseModel, Field
 from enrichment_agent import prompts
 from enrichment_agent.configuration import Configuration
 from enrichment_agent.state import InputState, OutputState, State
-from enrichment_agent.tools import scrape_website, search
+from enrichment_agent.tools import scrape_website, search, extensive_search
 from enrichment_agent.utils import init_model
+from langchain_core.messages import trim_messages
 
 
 async def call_agent_model(
@@ -48,10 +49,16 @@ async def call_agent_model(
 
     # Create the messages list with the formatted prompt and the previous messages
     messages = [HumanMessage(content=p)] + state.messages
+    raw_model = init_model(config)
+    messages = trim_messages(
+        messages,
+        max_tokens=150000,
+        token_counter=raw_model,
+    )
 
     # Initialize the raw model with the provided configuration and bind the tools
-    raw_model = init_model(config)
-    model = raw_model.bind_tools([scrape_website, search, info_tool], tool_choice="any")
+    
+    model = raw_model.bind_tools([ extensive_search, info_tool], tool_choice="any")
     response = cast(AIMessage, await model.ainvoke(messages))
 
     # Initialize info to None
@@ -122,15 +129,20 @@ async def reflect(
         )
     messages = [HumanMessage(content=p)] + state.messages[:-1]
     presumed_info = state.info
-    checker_prompt = """I am thinking of calling the info tool with the info below. \
-Is this good? Give your reasoning as well. \
-You can encourage the Assistant to look at specific URLs if that seems relevant, or do more searches.
+    checker_prompt = """I am thinking of calling the info tool with the info below. 
+Is this good? Give your reasoning as well. 
+You can encourage the Assistant to extract inf specific URLs if that seems relevant, or do more searches.
 If you don't think it is good, you should be very specific about what could be improved.
 
 {presumed_info}"""
     p1 = checker_prompt.format(presumed_info=json.dumps(presumed_info or {}, indent=2))
     messages.append(HumanMessage(content=p1))
     raw_model = init_model(config)
+    messages = trim_messages(
+        messages,
+        max_tokens=30000,
+        token_counter=raw_model,
+        )
     bound_model = raw_model.with_structured_output(InfoIsSatisfactory)
     response = cast(InfoIsSatisfactory, await bound_model.ainvoke(messages))
     if response.is_satisfactory and presumed_info:
@@ -173,6 +185,7 @@ def route_after_agent(
     3. Continued research: If the agent has called any other tool.
     """
     last_message = state.messages[-1]
+
 
     # "If for some reason the last message is not an AIMessage (due to a bug or unexpected behavior elsewhere in the code),
     # it ensures the system doesn't crash but instead tries to recover by calling the agent model again.
@@ -219,11 +232,11 @@ workflow = StateGraph(
 )
 workflow.add_node(call_agent_model)
 workflow.add_node(reflect)
-workflow.add_node("tools", ToolNode([search, scrape_website]))
+workflow.add_node("tools", ToolNode([extensive_search]))
 workflow.add_edge("__start__", "call_agent_model")
 workflow.add_conditional_edges("call_agent_model", route_after_agent)
 workflow.add_edge("tools", "call_agent_model")
 workflow.add_conditional_edges("reflect", route_after_checker)
 
 graph = workflow.compile()
-graph.name = "ResearchTopic"
+graph.name = "DataEnrichmentContraption"
